@@ -1,13 +1,14 @@
 from fastapi import FastAPI
 from .database import engine
 from . import models
-from .routers import auth
+from .routers import auth, jobs
 
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Job Application Tracker API")
 
 app.include_router(auth.router)
+app.include_router(jobs.router)
 
 @app.get("/health")
 def health_check():
