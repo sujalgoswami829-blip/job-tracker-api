@@ -1,3 +1,5 @@
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from fastapi import FastAPI
 from .database import engine
 from . import models
@@ -13,3 +15,6 @@ app.include_router(jobs.router)
 @app.get("/health")
 def health_check():
     return {"status": "ok", "message": "API and Database are running"}
+@app.get("/")
+def serve_homepage():
+    return FileResponse("app/index.html")

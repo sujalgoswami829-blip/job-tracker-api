@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Tracker</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f4f9; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .hidden { display: none; }
+        input, select, button { padding: 10px; margin: 5px 0; width: 100%; box-sizing: border-box; }
+        button { background: #007BFF; color: white; border: none; cursor: pointer; border-radius: 4px;}
+        button:hover { background: #0056b3; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #f2f2f2; }
+        .flex { display: flex; gap: 10px; }
+        .flex input { flex: 1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Job Application Tracker</h2>
+        
+        <!-- Login Section -->
+        <div id="login-section">
+            <h3>Login / Register</h3>
+            <input type="email" id="email" placeholder="Email">
+            <input type="password" id="password" placeholder="Password">
+            <div class="flex">
+                <button onclick="login()">Login</button>
+                <button onclick="register()" style="background: #28a745;">Register</button>
+            </div>
+            <p id="auth-msg" style="color: red;"></p>
+        </div>
+
+        <!-- Dashboard Section -->
+        <div id="dashboard" class="hidden">
+            <button onclick="logout()" style="background: #dc3545; width: auto;">Logout</button>
+            <h3>Add New Job</h3>
+            <input type="text" id="company" placeholder="Company Name">
+            <input type="text" id="role" placeholder="Role">
+            <select id="status">
+                <option value="Applied">Applied</option>
+                <option value="Interview">Interview</option>
+                <option value="Offer">Offer</option>
+                <option value="Rejected">Rejected</option>
+            </select>
+            <button onclick="addJob()">Add Job</button>
+
+            <h3>Your Jobs</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Company</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="jobs-list"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let token = localStorage.getItem("token");
+
+        function showDashboard() {
+            document.getElementById("login-section").classList.add("hidden");
+            document.getElementById("dashboard").classList.remove("hidden");
+            loadJobs();
+        }
+
+        function logout() {
+            localStorage.removeItem("token");
+            token = null;
+            location.reload();
+        }
+
+        async function register() {
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+            const res = await fetch("/register", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({email, password})
+            });
+            if(res.ok) {
+                alert("Registered! Now log in.");
+            } else {
+                document.getElementById("auth-msg").innerText = "Registration failed.";
+            }
+        }
+
+        async function login() {
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+            
+            const formData = new URLSearchParams();
+            formData.append("username", email);
+            formData.append("password", password);
+
+            const res = await fetch("/login", {
+                method: "POST",
+                body: formData
+            });
+            
+            if(res.ok) {
+                const data = await res.json();
+                token = data.access_token;
+                localStorage.setItem("token", token);
+                showDashboard();
+            } else {
+                document.getElementById("auth-msg").innerText = "Invalid credentials.";
+            }
+        }
+
+        async function loadJobs() {
+            const res = await fetch("/jobs/", {
+                headers: {"Authorization": `Bearer ${token}`}
+            });
+            if(res.ok) {
+                const jobs = await res.json();
+                const tbody = document.getElementById("jobs-list");
+                tbody.innerHTML = "";
+                jobs.forEach(job => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${job.company}</td>
+                            <td>${job.role}</td>
+                            <td>${job.status}</td>
+                            <td><button onclick="deleteJob(${job.id})" style="background:red; padding: 5px;">Delete</button></td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        async function addJob() {
+            const company = document.getElementById("company").value;
+            const role = document.getElementById("role").value;
+            const status = document.getElementById("status").value;
+
+            const res = await fetch("/jobs/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({company, role, status})
+            });
+            if(res.ok) {
+                loadJobs();
+                document.getElementById("company").value = "";
+                document.getElementById("role").value = "";
+            }
+        }
+
+        async function deleteJob(id) {
+            await fetch(`/jobs/${id}`, {
+                method: "DELETE",
+                headers: {"Authorization": `Bearer ${token}`}
+            });
+            loadJobs();
+        }
+
+        // Check if already logged in
+        if(token) {
+            showDashboard();
+        }
+    </script>
+</body>
+</html>
